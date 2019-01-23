@@ -1,0 +1,12 @@
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.exe.config
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.exe
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.pdb
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.csprojResolveAssemblyReference.cache
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.exe
+C:\source code\SourceCode\Application\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.pdb
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.exe.config
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.exe
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.pdb
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\obj\Debug\DqciFileDelivery.csprojResolveAssemblyReference.cache
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.exe
+C:\Users\x3d3\Source\Workspaces\US-FoodSolutions\Utilities\DQCI\eMILK\Eurofins.Milk.DQCI.FileDelivery\DqciFileDelivery\bin\Debug\DqciFileDelivery.pdb
