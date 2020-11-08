@@ -9,6 +9,8 @@ from contextlib import suppress
 import pandas as pd
 from io import StringIO
 import os
+import boto3
+from boto3.s3.transfer import S3Transfer
 
 
 def xml_element_value(xml_response, element_name):
@@ -34,6 +36,8 @@ def csv_filepath(integrations):
         filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_MERCHANT_LISTINGS_DATA/{integrations['file_id']}-{integrations['marketplace_id']}-merchant-listings-data.csv"
     elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ORDERS_DATA_":
         filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_FLAT_FILE_ORDERS_DATA/{integrations['file_id']}-{integrations['marketplace_id']}-orders-data.csv"
+    # elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
+    #     filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE/{integrations['file_id']}-{integrations['marketplace_id']}-orders-data-{str(datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))}.csv"
 
     return filepath
 
@@ -54,7 +58,7 @@ def start_end_dates(action, days):
     if action == "+":
         startdate = datetime.date.today()
         enddate = startdate + datetime.timedelta(days=days)
-    else:
+    elif action == "-":
         startdate = datetime.date.today() - datetime.timedelta(days=days)
         enddate = datetime.date.today()
 
@@ -110,6 +114,10 @@ def mws_request_report(conn, integrations):
     """Request reports for the report type per merchant/marketplace."""
     response = ""
 
+    # if integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
+    #     response = conn.request_report(
+    #         report_type=integrations["enumeration_value"], start_date=integrations["start_date"], end_date=integrations["end_date"], marketplaceids=integrations["marketplace_id"]).original
+
     if integrations["enumeration_value"] == "_GET_FLAT_FILE_ORDERS_DATA_":
         dates = start_end_dates("-", 60)
         response = conn.request_report(
@@ -118,13 +126,17 @@ def mws_request_report(conn, integrations):
         response = conn.request_report(
             report_type=integrations["enumeration_value"], marketplaceids=integrations["marketplace_id"]).original
 
-    request_id = xml_element_value(response, "ReportRequestId")
-    status = xml_element_value(response, "ReportProcessingStatus")
-    request_date = xml_element_value(response, "SubmittedDate")
-    integrations["report_request_id"] = request_id[0]
-    integrations["status"] = status[0]
-    integrations["request_date"] = request_date[0]
-    return integrations
+    xml_request_id = xml_element_value(response, "ReportRequestId")
+    xml_status = xml_element_value(response, "ReportProcessingStatus")
+    xml_request_date = xml_element_value(response, "SubmittedDate")
+    xml_start_date = xml_element_value(response, "StartDate")
+    xml_end_date = xml_element_value(response, "EndDate")
+    integrations["report_request_id"] = xml_request_id[0]
+    integrations["status"] = xml_status[0]
+    integrations["request_date"] = xml_request_date[0]
+    integrations["start_date"] = xml_start_date[0]
+    integrations["end_date"] = xml_end_date[0]
+    return integrations 
 
 
 def mws_report_id(conn, integrations):
@@ -132,24 +144,28 @@ def mws_report_id(conn, integrations):
     response = conn.get_report_list(
         requestids=integrations["report_request_id"], types=integrations["enumeration_value"]).original
     report_id = xml_element_value(response, "ReportId")
-    return report_id[0]
+
+    if report_id:
+        return report_id[0]
 
 
 def mws_report_data(conn, report_id):
     """Returns report data output."""
-    response = conn.get_report(report_id=report_id).original
-    data = StringIO(str(response, "mac_roman"))
-    return data
+    if report_id:
+        response = conn.get_report(report_id=report_id).original
+        data = StringIO(str(response, "mac_roman"))
+        return data
 
 
 def mws_create_csv(integrations, report_data):
     """Creates a csv file based on the data that is passed"""
-    data = pd.read_csv(report_data, sep="\t", dtype="str", header=0)
-    data["marketplace_id"] = integrations["marketplace_id"]
-    data["seller_id"] = integrations["merchant_id"]
-    filepath = csv_filepath(integrations)
-    data.to_csv(filepath, sep="\t", encoding="utf-8",
-                index=False, line_terminator="\n")
+    if report_data:
+        data = pd.read_csv(report_data, sep="\t", dtype="str", header=0)
+        data["marketplace_id"] = integrations["marketplace_id"]
+        data["seller_id"] = integrations["merchant_id"]
+        filepath = csv_filepath(integrations)
+        data.to_csv(filepath, sep="\t", encoding="utf-8",
+                    index=False, line_terminator="\n")
 
 
 def mws_run_requests():
@@ -186,7 +202,7 @@ def mws_combine_reports(integration, folder_name, filename):
     """Combine csv files into one file"""
     files = files_directory(f"./files/{integration}/{folder_name}", "*.csv")
     lst = []
-    filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/{folder_name}/{filename}"
+    filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/combine_reports/{filename}"
 
     for f in files:
         df = pd.read_csv(f, sep="\t", dtype="str", header=0)
@@ -195,8 +211,26 @@ def mws_combine_reports(integration, folder_name, filename):
     with suppress(Exception):
         df = pd.concat(lst)
         df2 = df.sort_index(axis=1)  # Sort headers alphabetically.
-        df2.to_csv(filepath, sep="\t", encoding="utf-8",
+        df2.to_csv(filepath, sep="|", encoding="utf-8",
                    index=False, line_terminator="\n")
+
+def upload_to_s3(integration, folder_name):
+    """Copy local files to s3 bucket"""
+    files = files_directory(f"./files/{integration}/{folder_name}", "*.csv") 
+    config_file = yaml_file_loader("mws_config.yaml")
+    access_key = config_file["s3_bucket"]["access_key"]
+    secret_key = config_file["s3_bucket"]["secret_key"]
+    client = boto3.client('s3', aws_access_key_id=access_key,
+                      aws_secret_access_key=secret_key)
+    transfer = S3Transfer(client)
+    bucket = f"daasity-analysts"
+    
+    for f in files:
+        path = str(os.path.abspath(f))
+        s3_file_name = f"511/{integration}/{str(os.path.basename(f))}"
+        transfer.upload_file(path, bucket, s3_file_name)
+        # print(os.path.basename(f))
+        # print(str(f))
 
 
 def main():
@@ -215,15 +249,24 @@ def main():
 
             # GET_MERCHANT_LISTINGS_DATA report
             mws_combine_reports("cc", "GET_MERCHANT_LISTINGS_DATA",
-                                "asc_report_merchant_lisntings.csv")
+                                "asc_report_merchant_listings.csv")
             mws_combine_reports("mpv", "GET_MERCHANT_LISTINGS_DATA",
-                                "asc_report_merchant_lisntings.csv")
+                                "asc_report_merchant_listings.csv")
 
             # GET_FLAT_FILE_ORDERS_DATA
             mws_combine_reports("cc", "GET_FLAT_FILE_ORDERS_DATA",
                                 "asc_report_all_orders.csv")
             mws_combine_reports("mpv", "GET_FLAT_FILE_ORDERS_DATA",
                                 "asc_report_all_orders.csv")
+
+            # # GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE
+            # mws_combine_reports("cc", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
+            #                     f"asc_report_all_orders.csv")
+            # mws_combine_reports("mpv", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
+            #                     f"asc_report_all_orders.csv")
+        elif request_type == "upload":
+            upload_to_s3("cc", "combine_reports")
+            upload_to_s3("mpv", "combine_reports")
         elif request_type == "delete":
             delete_files("./files", ".csv")
 
