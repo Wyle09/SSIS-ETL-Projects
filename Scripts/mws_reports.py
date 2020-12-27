@@ -36,8 +36,8 @@ def csv_filepath(integrations):
         filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_MERCHANT_LISTINGS_DATA/{integrations['file_id']}-{integrations['marketplace_id']}-merchant-listings-data.csv"
     elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ORDERS_DATA_":
         filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_FLAT_FILE_ORDERS_DATA/{integrations['file_id']}-{integrations['marketplace_id']}-orders-data.csv"
-    # elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
-    #     filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE/{integrations['file_id']}-{integrations['marketplace_id']}-orders-data-{str(datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))}.csv"
+    elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
+        filepath = f"/Users/wylecordero/OneDrive - Daasity/scripts/mws/files/{integration}/GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE/{integrations['file_id']}-{integrations['marketplace_id']}-orders-data-{str(datetime.datetime.now().strftime('%Y_%m_%d_%H_%M_%S'))}.csv"
 
     return filepath
 
@@ -114,11 +114,11 @@ def mws_request_report(conn, integrations):
     """Request reports for the report type per merchant/marketplace."""
     response = ""
 
-    # if integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
-    #     response = conn.request_report(
-    #         report_type=integrations["enumeration_value"], start_date=integrations["start_date"], end_date=integrations["end_date"], marketplaceids=integrations["marketplace_id"]).original
+    if integrations["enumeration_value"] == "_GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE_":
+        response = conn.request_report(
+            report_type=integrations["enumeration_value"], start_date=integrations["start_date"], end_date=integrations["end_date"], marketplaceids=integrations["marketplace_id"]).original
 
-    if integrations["enumeration_value"] == "_GET_FLAT_FILE_ORDERS_DATA_":
+    elif integrations["enumeration_value"] == "_GET_FLAT_FILE_ORDERS_DATA_":
         dates = start_end_dates("-", 60)
         response = conn.request_report(
             report_type=integrations["enumeration_value"], start_date=dates[0], end_date=dates[1], marketplaceids=integrations["marketplace_id"]).original
@@ -136,7 +136,7 @@ def mws_request_report(conn, integrations):
     integrations["request_date"] = xml_request_date[0]
     integrations["start_date"] = xml_start_date[0]
     integrations["end_date"] = xml_end_date[0]
-    return integrations 
+    return integrations
 
 
 def mws_report_id(conn, integrations):
@@ -214,23 +214,22 @@ def mws_combine_reports(integration, folder_name, filename):
         df2.to_csv(filepath, sep="|", encoding="utf-8",
                    index=False, line_terminator="\n")
 
+
 def upload_to_s3(integration, folder_name):
     """Copy local files to s3 bucket"""
-    files = files_directory(f"./files/{integration}/{folder_name}", "*.csv") 
+    files = files_directory(f"./files/{integration}/{folder_name}", "*.csv")
     config_file = yaml_file_loader("mws_config.yaml")
     access_key = config_file["s3_bucket"]["access_key"]
     secret_key = config_file["s3_bucket"]["secret_key"]
     client = boto3.client('s3', aws_access_key_id=access_key,
-                      aws_secret_access_key=secret_key)
+                          aws_secret_access_key=secret_key)
     transfer = S3Transfer(client)
     bucket = f"daasity-analysts"
-    
+
     for f in files:
         path = str(os.path.abspath(f))
         s3_file_name = f"511/{integration}/{str(os.path.basename(f))}"
         transfer.upload_file(path, bucket, s3_file_name)
-        # print(os.path.basename(f))
-        # print(str(f))
 
 
 def main():
@@ -259,11 +258,11 @@ def main():
             mws_combine_reports("mpv", "GET_FLAT_FILE_ORDERS_DATA",
                                 "asc_report_all_orders.csv")
 
-            # # GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE
-            # mws_combine_reports("cc", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
-            #                     f"asc_report_all_orders.csv")
-            # mws_combine_reports("mpv", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
-            #                     f"asc_report_all_orders.csv")
+            # GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE
+            mws_combine_reports("cc", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
+                                f"asc_report_all_orders.csv")
+            mws_combine_reports("mpv", "GET_FLAT_FILE_ALL_ORDERS_DATA_BY_ORDER_DATE",
+                                f"asc_report_all_orders.csv")
         elif request_type == "upload":
             upload_to_s3("cc", "combine_reports")
             upload_to_s3("mpv", "combine_reports")
