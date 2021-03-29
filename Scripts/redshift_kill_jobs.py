@@ -2,11 +2,11 @@ import psycopg2
 
 def create_conn():
     config = {
-        'dbname' : 'daasity',
-        'host' : 'dw-cluster.clkzxqi5qub5.us-west-2.redshift.amazonaws.com',
-        'port' : '5439',
-        'user' : 'awsuser',
-        'password' : 'e#[iEhf3dzq'
+        'dbname' : '',
+        'host' : '',
+        'port' : '',
+        'user' : '',
+        'password' : ''
     }
     try:
         conn=psycopg2.connect(dbname = config['dbname'],
